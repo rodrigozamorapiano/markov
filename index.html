@@ -1,0 +1,797 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Laboratorio de Markov</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: una sola columna de lectura (hero + 5 secciones numeradas); cada seccion junta controles a la izquierda y visualizacion a la derecha, y se apila en movil. */
+:root{
+  --bg:#D9C9AF; --panel:#F3EADA; --ink:#1F1A14; --muted:#5A4A36; --line:#BCAA8B; --track:#E1D4BC; --grid:#CDBC9F; --hover:#EBDFC9;
+  --accent:#14507F; --on-accent:#FFFFFF;
+  --s0:#14507F; --s1:#B4531F; --s2:#2F7F82; --s3:#6B3E22; --on:#FFFFFF;
+  --good:#2D6A3E; --bad:#A32A1E;
+  --display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
+  --body:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1D2A; --panel:#162C40; --ink:#F0E6D2; --muted:#B7A88E; --line:#2D4660; --track:#21384E; --grid:#1B3147; --hover:#1D3550;
+    --accent:#7DB4E0; --on-accent:#0F1D2A;
+    --s0:#7DB4E0; --s1:#F0A275; --s2:#5CC4BF; --s3:#D2A06E; --on:#0F1D2A;
+    --good:#7FD19A; --bad:#FF9A8A; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1D2A; --panel:#162C40; --ink:#F0E6D2; --muted:#B7A88E; --line:#2D4660; --track:#21384E; --grid:#1B3147; --hover:#1D3550;
+  --accent:#7DB4E0; --on-accent:#0F1D2A;
+  --s0:#7DB4E0; --s1:#F0A275; --s2:#5CC4BF; --s3:#D2A06E; --on:#0F1D2A;
+  --good:#7FD19A; --bad:#FF9A8A; color-scheme:dark;
+}
+*{box-sizing:border-box}
+:root{color-scheme:light}
+html,body{margin:0}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font:400 15px/1.6 var(--body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0}
+.wrap{max-width:1080px;margin:0 auto;padding-block:28px 72px;display:flex;flex-direction:column;gap:40px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;line-height:1.1}
+h1{font-weight:800;font-size:clamp(2.1rem,6vw,3.4rem);letter-spacing:-.02em}
+h2{font-weight:800;font-size:clamp(1.4rem,3.4vw,1.9rem);letter-spacing:-.01em;display:flex;align-items:baseline;gap:12px}
+h3{font-weight:600;font-size:1.05rem}
+p{margin:0}
+.muted{color:var(--muted)}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font:500 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.n{font:600 13px/1 var(--mono);color:var(--on-accent);background:var(--accent);border-radius:5px;padding:5px 7px;transform:translateY(-3px)}
+.sec{display:flex;flex-direction:column;gap:16px}
+.sec>p{max-width:68ch;color:var(--muted)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;min-width:0}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:16px}
+.grid2.even{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+@media (max-width:820px){.grid2,.grid2.even{grid-template-columns:minmax(0,1fr)}}
+.stack{display:flex;flex-direction:column;gap:14px;min-width:0}
+.scroll{overflow-x:auto}
+
+/* hero */
+.hero{border:1px solid var(--line);border-radius:14px;padding:clamp(20px,4vw,40px);display:flex;flex-direction:column;gap:18px;
+  background-color:var(--panel);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:26px 26px}
+.hero p.lead{max-width:60ch;font-size:1.08rem}
+.formula{font:500 clamp(12px,2.4vw,15px)/1.7 var(--mono);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow-x:auto;white-space:nowrap}
+.formula-cap{font-size:13px;color:var(--muted);margin-top:-8px}
+
+/* controls */
+.btn{font:500 14px/1 var(--body);padding:10px 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.btn:hover{background:var(--hover)}
+.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.btn.primary:hover{opacity:.88}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:focus-visible,.chip:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.chip{font:500 14px/1.3 var(--body);text-align:left;padding:11px 14px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;display:flex;flex-direction:column;gap:2px}
+.chip small{font:400 12px/1.3 var(--mono);color:var(--muted)}
+.chip:hover{background:var(--hover)}
+.chip[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.chips.sm{grid-template-columns:repeat(auto-fit,minmax(110px,1fr))}
+.chips.sm .chip{padding:8px 12px;flex-direction:row;align-items:center;gap:0}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--c);margin-right:7px;flex:none}
+.lab{font:500 12px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+
+/* matrix */
+table{border-collapse:collapse}
+.mtx{width:100%}
+.mtx th,.mtx td{padding:6px 5px;text-align:center;font-size:13px;vertical-align:middle}
+.mtx thead th{font-weight:500;color:var(--muted);white-space:nowrap}
+.mtx tbody th{text-align:left;font-weight:500;white-space:nowrap}
+.mtx .corner{font:400 11px/1.3 var(--mono);text-align:left;color:var(--muted)}
+.mtx input{width:4.6em;font:500 14px/1 var(--mono);text-align:center;padding:9px 4px;border-radius:7px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+.pill{display:inline-block;font:500 12px/1 var(--mono);padding:5px 8px;border-radius:99px;border:1px solid currentColor;white-space:nowrap}
+.pill.ok{color:var(--good)} .pill.bad{color:var(--bad)}
+.explain{font-size:14px;min-height:3.2em}
+.notice{font-size:13px;color:var(--bad)}
+
+/* diagram + charts */
+svg{display:block;max-width:100%;height:auto}
+.svgbox{overflow-x:auto}
+.svgbox svg{min-width:460px;width:100%}
+.svgbox.wide svg{min-width:540px}
+.sv-label{font:500 13px var(--mono);fill:var(--ink);paint-order:stroke;stroke:var(--panel);stroke-width:4px;stroke-linejoin:round}
+.sv-axis{font:400 11px var(--mono);fill:var(--muted)}
+.sv-name{font:500 12px var(--body);fill:var(--muted)}
+.sv-node{font:800 18px var(--display)}
+
+/* bars */
+.bar-row{display:grid;grid-template-columns:104px minmax(0,1fr) 52px;gap:10px;align-items:center;margin:7px 0;font-size:13px}
+.bl{display:flex;align-items:center;white-space:nowrap}
+.track{position:relative;height:18px;background:var(--track);border-radius:4px}
+.fill{height:100%;border-radius:4px;background:var(--c);min-width:2px}
+.mark{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink)}
+.bv{font:500 13px var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+.legend{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.legend i{display:inline-block;width:2px;height:14px;background:var(--ink)}
+
+/* simulation */
+.now{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.badge{font:800 1.5rem/1 var(--display);padding:10px 16px;border-radius:9px;background:var(--c);color:var(--on)}
+.strip{display:flex;flex-wrap:wrap;gap:3px;min-height:26px}
+.cell{width:23px;height:23px;display:grid;place-items:center;border-radius:4px;font:600 11px var(--mono);background:var(--c);color:var(--on)}
+.cell.last{outline:2px solid var(--ink);outline-offset:1px}
+.obs{width:100%}
+.obs th,.obs td{padding:6px 8px;font-size:13px;text-align:center}
+.obs thead th{font-weight:500;color:var(--muted)}
+.obs tbody th{text-align:left;font-weight:500;white-space:nowrap}
+.obs td{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.obs td small{color:var(--muted)}
+.heat td{background:color-mix(in srgb,var(--accent) calc(var(--h)*34%),var(--panel))}
+
+/* slider */
+input[type=range]{width:100%;accent-color:var(--accent)}
+.stat{font:500 13px/1.5 var(--mono)}
+
+/* properties */
+.props{width:100%}
+.props th,.props td{padding:9px 10px;text-align:left;font-size:14px;border-bottom:1px solid var(--line)}
+.props thead th{font:500 12px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.props td.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.verdict{display:flex;flex-direction:column;gap:6px}
+.verdict h3{font-size:1.25rem}
+
+/* practice */
+.q{font-size:1.05rem;max-width:62ch}
+.ans{width:9em;font:500 16px/1 var(--mono);padding:11px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+.feedback{font-weight:600;min-height:1.6em}
+.feedback.good{color:var(--good)} .feedback.bad{color:var(--bad)}
+.sol{font:400 13.5px/1.8 var(--mono);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow-x:auto}
+
+/* glossary */
+details{border-bottom:1px solid var(--line);padding:11px 2px}
+summary{cursor:pointer;font-weight:600;list-style-position:inside}
+details p{margin-top:6px;color:var(--muted);max-width:70ch}
+footer{font-size:13px;color:var(--muted);max-width:70ch}
+@media (prefers-reduced-motion:no-preference){.fill{transition:width .25s ease}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header class="hero">
+  <span class="eyebrow">Procesos estocásticos</span>
+  <h1>Cadenas de Markov</h1>
+  <p class="lead">Un sistema salta de un estado a otro, y la probabilidad del siguiente salto depende solo del estado en el que está ahora. Cambia las probabilidades, simula trayectorias y observa hacia dónde se estabiliza.</p>
+  <div class="formula" role="math" aria-label="P de X sub n+1 igual j dado X sub n igual i, y todo el pasado, es igual a p sub i j">P( X<sub>n+1</sub> = j | X<sub>n</sub> = i, X<sub>n−1</sub>, …, X<sub>0</sub> ) = P( X<sub>n+1</sub> = j | X<sub>n</sub> = i ) = p<sub>ij</sub></div>
+  <p class="formula-cap">Propiedad de Markov: el pasado importa solo a través del presente.</p>
+</header>
+
+<section class="sec" aria-labelledby="h-sistema">
+  <h2 id="h-sistema">Elige un sistema</h2>
+  <div class="chips" id="presets" role="group" aria-label="Sistemas de ejemplo"></div>
+  <p id="presetNote"></p>
+</section>
+
+<section class="sec" aria-labelledby="h-1">
+  <h2 id="h-1"><span class="n">1</span>Estados y transiciones</h2>
+  <p>Cada fila de la matriz dice a dónde puede ir el sistema desde un estado. Edita los números; cada fila debe sumar 1 porque el sistema siempre va a algún lado.</p>
+  <div class="grid2">
+    <div class="card stack">
+      <div class="scroll"><div id="matrix"></div></div>
+      <p class="explain" id="explain" aria-live="polite"></p>
+      <p class="notice" id="normNotice" hidden>Alguna fila no suma 1. Los cálculos usan cada fila dividida entre su suma.</p>
+      <div class="row">
+        <button class="btn primary" id="btnNorm" type="button">Normalizar filas</button>
+        <button class="btn" id="btnRestore" type="button">Restaurar ejemplo</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="svgbox" id="diagram"></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="h-2">
+  <h2 id="h-2"><span class="n">2</span>Simular una trayectoria</h2>
+  <p>Da pasos y mira cómo el sistema salta. Con pocos pasos todo parece azar; con muchos, las frecuencias se acercan a un patrón estable y las transiciones observadas se acercan a la matriz.</p>
+  <div class="card stack">
+    <div class="stack" style="gap:8px">
+      <span class="lab">Empezar en</span>
+      <div class="chips sm" id="simStart"></div>
+    </div>
+    <div class="row">
+      <button class="btn primary" type="button" data-act="1">Dar 1 paso</button>
+      <button class="btn" type="button" data-act="10">+10</button>
+      <button class="btn" type="button" data-act="100">+100</button>
+      <button class="btn" type="button" data-act="1000">+1000</button>
+      <button class="btn" type="button" id="btnPlay">Reproducir</button>
+      <button class="btn" type="button" id="btnReset">Reiniciar</button>
+    </div>
+    <div class="now" id="now"></div>
+    <div class="strip" id="strip" aria-label="Últimos estados visitados"></div>
+  </div>
+  <div class="grid2 even">
+    <div class="card stack">
+      <h3>Tiempo pasado en cada estado</h3>
+      <div id="simBars"></div>
+      <div class="legend"><i></i> marca = distribución estacionaria (largo plazo)</div>
+    </div>
+    <div class="card stack">
+      <h3>Transiciones observadas</h3>
+      <div class="scroll" id="obs"></div>
+      <p class="muted" style="font-size:13px">Cada celda: frecuencia observada y, entre paréntesis, la probabilidad de la matriz.</p>
+    </div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="h-3">
+  <h2 id="h-3"><span class="n">3</span>Convergencia de la distribución</h2>
+  <p>En lugar de seguir una sola trayectoria, sigue la probabilidad. Parte de un estado seguro y mira cómo se reparte la probabilidad conforme pasan los pasos. La fila del estado inicial en la matriz P<sup>n</sup> es esa distribución.</p>
+  <div class="card stack">
+    <div class="stack" style="gap:8px">
+      <span class="lab">Partir de</span>
+      <div class="chips sm" id="convStart"></div>
+    </div>
+    <div class="row" style="flex-wrap:nowrap">
+      <button class="btn" type="button" id="btnCPlay" style="flex:none">Animar</button>
+      <input type="range" id="nslider" min="0" max="20" value="3" step="1" aria-label="Número de pasos n">
+      <span class="mono" id="nval" style="flex:none;min-width:5.5em;text-align:right"></span>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card"><div class="svgbox wide" id="chart"></div></div>
+    <div class="card stack">
+      <h3>Distribución en el paso n</h3>
+      <div id="convBars"></div>
+      <p class="stat" id="convStat"></p>
+      <div class="legend"><i></i> marca = distribución estacionaria</div>
+      <h3 style="margin-top:6px">Matriz P<sup>n</sup> (probabilidad de ir de i a j en n pasos)</h3>
+      <div class="scroll" id="powMat"></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="h-4">
+  <h2 id="h-4"><span class="n">4</span>Propiedades a largo plazo</h2>
+  <p>Qué le pasa a la cadena con el tiempo depende de su estructura: qué estados se comunican, si hay estados sin salida y si existen ciclos.</p>
+  <div class="grid2 even">
+    <div class="card verdict" id="verdict"></div>
+    <div class="card stack" id="absCard">
+    </div>
+  </div>
+  <div class="card scroll"><div id="props"></div></div>
+</section>
+
+<section class="sec" aria-labelledby="h-5">
+  <h2 id="h-5"><span class="n">5</span>Practica</h2>
+  <p>Resuelve a mano con la matriz del sistema que elegiste. Responde como decimal (0.25) o como porcentaje (25%).</p>
+  <div class="card stack">
+    <span class="lab" id="exKind"></span>
+    <p class="q" id="exQ"></p>
+    <div class="row">
+      <input class="ans" id="exAns" type="text" inputmode="decimal" autocomplete="off" aria-label="Tu respuesta">
+      <button class="btn primary" type="button" id="exCheck">Comprobar</button>
+      <button class="btn" type="button" id="exShow">Ver solución</button>
+      <button class="btn" type="button" id="exNew">Otro ejercicio</button>
+    </div>
+    <p class="feedback" id="exFb" aria-live="polite"></p>
+    <div class="sol" id="exSol" hidden></div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="h-6">
+  <h2 id="h-6">Glosario</h2>
+  <div>
+    <details><summary>Estado</summary><p>Cada situación posible del sistema: soleado o lluvioso, mercado alcista o bajista, una calificación crediticia.</p></details>
+    <details><summary>Matriz de transición</summary><p>La matriz P cuya entrada p<sub>ij</sub> es la probabilidad de pasar del estado i al estado j en un paso. Todas sus entradas son no negativas y cada fila suma 1.</p></details>
+    <details><summary>Propiedad de Markov</summary><p>La probabilidad del siguiente estado depende solo del estado actual, no de cómo se llegó a él.</p></details>
+    <details><summary>Chapman–Kolmogorov</summary><p>La probabilidad de ir de i a j en n pasos es la entrada (i, j) de P<sup>n</sup>. Se calcula sumando todos los caminos intermedios: P<sup>2</sup><sub>ij</sub> = Σ<sub>k</sub> p<sub>ik</sub> p<sub>kj</sub>.</p></details>
+    <details><summary>Distribución estacionaria</summary><p>Un vector π con πP = π. Si el sistema se reparte según π hoy, se reparte igual mañana. En una cadena ergódica es también la fracción de tiempo que pasa en cada estado a largo plazo.</p></details>
+    <details><summary>Irreducible</summary><p>Desde cualquier estado se puede llegar a cualquier otro, en uno o más pasos.</p></details>
+    <details><summary>Periodo</summary><p>El máximo común divisor de los tiempos en que el sistema puede volver a un estado. Periodo 1 significa aperiódico; un periodo mayor significa que el regreso ocurre solo en ciertos múltiplos de pasos.</p></details>
+    <details><summary>Estado absorbente</summary><p>Un estado del que no se sale: p<sub>ii</sub> = 1. El incumplimiento (default) de un bono es un ejemplo.</p></details>
+    <details><summary>Recurrente y transitorio</summary><p>Un estado recurrente se visita una y otra vez; uno transitorio se abandona para siempre tarde o temprano, porque desde él se puede llegar a una zona de la que no hay regreso.</p></details>
+    <details><summary>Tiempo medio de retorno</summary><p>En una cadena irreducible, el número esperado de pasos para volver a un estado es 1 / π<sub>i</sub>.</p></details>
+  </div>
+</section>
+
+<footer>Las probabilidades de los ejemplos son ilustrativas. El ejemplo de crédito no corresponde a datos de ninguna agencia calificadora.</footer>
+
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ---------- datos ---------- */
+var PRESETS=[
+  {id:'clima',label:'Clima',sub:'3 estados',names:['Soleado','Nublado','Lluvioso'],short:['S','N','L'],horizon:20,
+   P:[[.7,.2,.1],[.3,.4,.3],[.2,.3,.5]],
+   note:'El clima de mañana depende solo del de hoy. Es el ejemplo clásico de una cadena que converge: sin importar cómo empiece, a la larga llueve, hay sol o nubes en proporciones fijas.'},
+  {id:'mercado',label:'Mercado',sub:'régimen semanal, 3 estados',names:['Alcista','Bajista','Estancado'],short:['A','B','E'],horizon:40,
+   P:[[.9,.075,.025],[.15,.8,.05],[.25,.25,.5]],
+   note:'Régimen de mercado de una semana a la siguiente. Los estados alcista y bajista son muy persistentes; el estancado dura poco. Es un ejemplo de libro de texto para ver cuánto tiempo pasa el mercado en cada régimen.'},
+  {id:'credito',label:'Crédito',sub:'calificación anual, 4 estados',names:['Grado alto','Grado medio','Especulativo','Default'],short:['A','M','E','D'],horizon:100,
+   P:[[.93,.055,.01,.005],[.04,.88,.06,.02],[.01,.07,.82,.1],[0,0,0,1]],
+   note:'Migración de la calificación de un bono de un año al siguiente. Default es un estado absorbente: una vez que ocurre, no se sale. A largo plazo toda la probabilidad termina ahí, y la sección 4 calcula cuánto tarda en promedio.'},
+  {id:'pendulo',label:'Péndulo',sub:'2 estados, periódica',names:['Izquierda','Derecha'],short:['I','D'],horizon:12,
+   P:[[0,1],[1,0]],
+   note:'Alterna entre dos estados con certeza. No tiene memoria más allá del presente, pero es periódica: la distribución nunca converge, solo oscila. Sirve para ver por qué la aperiodicidad importa.'}
+];
+
+/* ---------- utilidades ---------- */
+function $(s){return document.querySelector(s)}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function fmt(x){return String(Math.round(x*10000)/10000)}
+function pct(x){return (Math.round(x*1000)/10)+'%'}
+function zeros(r,c){var o=[];for(var i=0;i<r;i++)o.push(new Array(c).fill(0));return o}
+function gcd(a,b){return b?gcd(b,a%b):a}
+function normalize(P){return P.map(function(r,i){var s=r.reduce(function(a,b){return a+b},0);return s>1e-9?r.map(function(x){return x/s}):r.map(function(_,j){return j===i?1:0})})}
+function mul(A,B){var n=A.length,m=B[0].length,k=B.length,C=zeros(n,m);for(var i=0;i<n;i++)for(var t=0;t<k;t++){var a=A[i][t];if(a)for(var j=0;j<m;j++)C[i][j]+=a*B[t][j]}return C}
+function vecMul(v,P){var n=P.length,o=new Array(n).fill(0);for(var i=0;i<n;i++)if(v[i])for(var j=0;j<n;j++)o[j]+=v[i]*P[i][j];return o}
+function identity(n){var I=zeros(n,n);for(var i=0;i<n;i++)I[i][i]=1;return I}
+function solve(A,b){
+  var n=b.length,M=A.map(function(r,i){return r.concat([b[i]])});
+  for(var c=0;c<n;c++){
+    var p=c;for(var r=c+1;r<n;r++)if(Math.abs(M[r][c])>Math.abs(M[p][c]))p=r;
+    if(Math.abs(M[p][c])<1e-12)return null;
+    var tmp=M[c];M[c]=M[p];M[p]=tmp;
+    for(var r2=0;r2<n;r2++){if(r2===c)continue;var f=M[r2][c]/M[c][c];if(f)for(var k=c;k<=n;k++)M[r2][k]-=f*M[c][k]}
+  }
+  return M.map(function(r,i){return r[n]/r[i]});
+}
+
+/* ---------- analisis ---------- */
+function analyze(P){
+  var n=P.length,eps=1e-12,i,j,k,t;
+  var A=P.map(function(r){return r.map(function(x){return x>eps})});
+  var R=A.map(function(r,ii){return r.map(function(x,jj){return x||ii===jj})});
+  for(k=0;k<n;k++)for(i=0;i<n;i++)if(R[i][k])for(j=0;j<n;j++)if(R[k][j])R[i][j]=true;
+  var cls=new Array(n).fill(-1),nc=0;
+  for(i=0;i<n;i++)if(cls[i]<0){for(j=0;j<n;j++)if(R[i][j]&&R[j][i])cls[j]=nc;nc++}
+  var closed=new Array(nc).fill(true);
+  for(i=0;i<n;i++)for(j=0;j<n;j++)if(A[i][j]&&cls[i]!==cls[j])closed[cls[i]]=false;
+  var rec=cls.map(function(c){return closed[c]});
+  var L=4*n*n+4,per=new Array(n).fill(0);
+  var cur=A.map(function(r,ii){return r.map(function(x,jj){return ii===jj})});
+  for(var len=1;len<=L;len++){
+    var nx=[];for(i=0;i<n;i++)nx.push(new Array(n).fill(false));
+    for(i=0;i<n;i++)for(t=0;t<n;t++)if(cur[i][t])for(j=0;j<n;j++)if(A[t][j])nx[i][j]=true;
+    cur=nx;
+    for(i=0;i<n;i++)if(cur[i][i])per[i]=gcd(per[i],len);
+  }
+  return {n:n,cls:cls,nc:nc,closed:closed,rec:rec,period:per,
+    closedCount:closed.filter(Boolean).length,
+    absorbing:P.map(function(r,ii){return r[ii]>1-1e-9}),
+    irreducible:nc===1};
+}
+function stationary(P,an,start){
+  var n=P.length,i,j;
+  if(an.closedCount===1){
+    var A=[];for(i=0;i<n;i++){A.push([]);for(j=0;j<n;j++)A[i].push(P[j][i]-(i===j?1:0))}
+    A[n-1]=new Array(n).fill(1);
+    var b=new Array(n).fill(0);b[n-1]=1;
+    var x=solve(A,b);
+    if(x)return {pi:x.map(function(v){return Math.abs(v)<1e-10?0:Math.max(0,v)}),unique:true};
+  }
+  var v=new Array(n).fill(0);v[start]=1;
+  var acc=new Array(n).fill(0),N=20000;
+  for(var s=0;s<N;s++){for(i=0;i<n;i++)acc[i]+=v[i];v=vecMul(v,P)}
+  return {pi:acc.map(function(a){return a/N}),unique:false};
+}
+function absorption(P,an){
+  var n=P.length,T=[],i,j;
+  for(i=0;i<n;i++){
+    if(an.rec[i]&&!an.absorbing[i])return null;
+    if(!an.rec[i])T.push(i);
+  }
+  if(!T.length)return null;
+  var m=T.length,A=[],b=new Array(m).fill(1);
+  for(i=0;i<m;i++){A.push([]);for(j=0;j<m;j++)A[i].push((i===j?1:0)-P[T[i]][T[j]])}
+  var t=solve(A,b);
+  if(!t)return null;
+  return T.map(function(s,idx){return {state:s,steps:t[idx]}});
+}
+
+/* ---------- estado ---------- */
+var S={pi:0,P:null,Pn:null,an:null,pows:null,piCache:{},activeRow:0,sim:null,conv:{start:0,n:3},ex:null,timer:null,ctimer:null};
+function cur(){return PRESETS[S.pi]}
+function hz(){return cur().horizon}
+
+function recompute(){
+  S.Pn=normalize(S.P);
+  S.an=analyze(S.Pn);
+  S.piCache={};
+  var n=S.Pn.length,pw=[identity(n)],H=hz();
+  for(var k=1;k<=H;k++)pw.push(mul(pw[k-1],S.Pn));
+  S.pows=pw;
+}
+function getPi(start){
+  var key=S.an.closedCount===1?'u':String(start);
+  if(!S.piCache[key])S.piCache[key]=stationary(S.Pn,S.an,start);
+  return S.piCache[key];
+}
+function loadPreset(i){
+  stopPlay();stopConvPlay();
+  S.pi=i;S.P=PRESETS[i].P.map(function(r){return r.slice()});
+  S.activeRow=0;
+  recompute();
+  resetSim(0);
+  S.conv={start:0,n:Math.max(1,Math.round(hz()/6))};
+  S.ex=newExercise();
+  renderAll();
+}
+
+/* ---------- simulacion ---------- */
+function resetSim(start){
+  var n=S.Pn.length;
+  S.sim={start:start,cur:start,steps:0,traj:[start],counts:zeros(n,n),visits:new Array(n).fill(0)};
+  S.sim.visits[start]=1;
+  stopPlay();
+}
+function stepOnce(){
+  var s=S.sim,row=S.Pn[s.cur],r=Math.random(),acc=0,nx=-1,j;
+  for(j=0;j<row.length;j++){acc+=row[j];if(r<acc){nx=j;break}}
+  if(nx<0){for(j=row.length-1;j>=0;j--)if(row[j]>0){nx=j;break}}
+  s.counts[s.cur][nx]++;s.cur=nx;s.visits[nx]++;s.steps++;s.traj.push(nx);
+  if(s.traj.length>600)s.traj=s.traj.slice(-120);
+}
+function stopPlay(){if(S.timer){clearInterval(S.timer);S.timer=null}var b=$('#btnPlay');if(b)b.textContent='Reproducir'}
+function stopConvPlay(){if(S.ctimer){clearInterval(S.ctimer);S.ctimer=null}var b=$('#btnCPlay');if(b)b.textContent='Animar'}
+
+/* ---------- render: presets ---------- */
+function renderPresets(){
+  $('#presets').innerHTML=PRESETS.map(function(p,i){
+    return '<button class="chip" type="button" data-i="'+i+'" aria-pressed="'+(i===S.pi)+'">'+esc(p.label)+'<small>'+esc(p.sub)+'</small></button>';
+  }).join('');
+  $('#presetNote').textContent=cur().note;
+}
+function stateChips(sel,active,attr){
+  var names=cur().names;
+  $(sel).innerHTML=names.map(function(nm,i){
+    return '<button class="chip" type="button" '+attr+'="'+i+'" aria-pressed="'+(i===active)+'"><i class="dot" style="--c:var(--s'+i+')"></i>'+esc(nm)+'</button>';
+  }).join('');
+}
+
+/* ---------- render: matriz ---------- */
+function renderMatrix(){
+  var names=cur().names,P=S.P,h='<table class="mtx"><thead><tr><th class="corner">desde ↓<br>hacia →</th>';
+  names.forEach(function(nm,j){h+='<th scope="col"><i class="dot" style="--c:var(--s'+j+')"></i>'+esc(nm)+'</th>'});
+  h+='<th scope="col">Suma</th></tr></thead><tbody>';
+  P.forEach(function(row,i){
+    h+='<tr><th scope="row"><i class="dot" style="--c:var(--s'+i+')"></i>'+esc(names[i])+'</th>';
+    row.forEach(function(v,j){
+      h+='<td><input type="number" id="p-'+i+'-'+j+'" data-i="'+i+'" data-j="'+j+'" min="0" max="1" step="0.01" value="'+fmt(v)+'" aria-label="Probabilidad de pasar de '+esc(names[i])+' a '+esc(names[j])+'"></td>';
+    });
+    h+='<td id="sum-'+i+'"></td></tr>';
+  });
+  h+='</tbody></table>';
+  $('#matrix').innerHTML=h;
+  updateSums();
+}
+function updateSums(){
+  var bad=false;
+  S.P.forEach(function(row,i){
+    var s=row.reduce(function(a,b){return a+b},0),ok=Math.abs(s-1)<0.0005;
+    if(!ok)bad=true;
+    $('#sum-'+i).innerHTML='<span class="pill '+(ok?'ok':'bad')+'">'+(ok?'Σ = 1':'Σ = '+fmt(s))+'</span>';
+    row.forEach(function(v,j){
+      var inp=$('#p-'+i+'-'+j);
+      if(inp)inp.style.background='color-mix(in srgb,var(--s'+j+') '+Math.round(Math.min(1,Math.max(0,v))*30)+'%,var(--panel))';
+    });
+  });
+  $('#normNotice').hidden=!bad;
+  $('#btnNorm').disabled=!bad;
+}
+function renderExplain(){
+  var i=S.activeRow,row=S.Pn[i],names=cur().names,parts=[],zeros_=[];
+  row.forEach(function(p,j){
+    if(p<0.0005)zeros_.push('<b>'+esc(names[j])+'</b>');
+    else parts.push(pct(p)+' de las veces '+(j===i?'se queda en':'pasa a')+' <b>'+esc(names[j])+'</b>');
+  });
+  var txt=parts.length>1?parts.slice(0,-1).join(', ')+' y '+parts[parts.length-1]:parts[0];
+  var tail=zeros_.length?'; nunca pasa a '+zeros_.join(' ni ')+'.':'.';
+  $('#explain').innerHTML='Desde <b>'+esc(names[i])+'</b>, '+txt+tail;
+}
+
+/* ---------- render: diagrama ---------- */
+function layout(n){
+  var cx=300,cy=245,R=140,out=[],i;
+  if(n===2){return [{x:190,y:cy,ux:0,uy:-1},{x:410,y:cy,ux:0,uy:-1}]}
+  for(i=0;i<n;i++){var a=-Math.PI/2+i*2*Math.PI/n;out.push({x:cx+R*Math.cos(a),y:cy+R*Math.sin(a),ux:Math.cos(a),uy:Math.sin(a)})}
+  return out;
+}
+function unit(x,y){var l=Math.hypot(x,y)||1;return [x/l,y/l]}
+function rot(ux,uy,a){return [ux*Math.cos(a)-uy*Math.sin(a),ux*Math.sin(a)+uy*Math.cos(a)]}
+function renderDiagram(){
+  var P=S.Pn,n=P.length,pos=layout(n),names=cur().names,short=cur().short,r=30,eps=0.0005,i,j;
+  var defs='<defs>';
+  for(i=0;i<n;i++)defs+='<marker id="ah'+i+'" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="13" markerHeight="13" markerUnits="userSpaceOnUse" orient="auto"><path d="M0 0L10 5L0 10z" style="fill:var(--s'+i+')"/></marker>';
+  defs+='</defs>';
+  var paths='',labels='',nodes='';
+  for(i=0;i<n;i++)for(j=0;j<n;j++){
+    var p=P[i][j];if(p<eps)continue;
+    var w=1.3+5*p,a=pos[i],b=pos[j],lab;
+    if(i===j){
+      var u=[a.ux,a.uy],pa=rot(u[0],u[1],-0.5),pb=rot(u[0],u[1],0.5),c1=rot(u[0],u[1],-0.36),c2=rot(u[0],u[1],0.36);
+      var sx=a.x+pa[0]*r,sy=a.y+pa[1]*r,ex=a.x+pb[0]*(r+4),ey=a.y+pb[1]*(r+4);
+      var q1x=a.x+c1[0]*(r+58),q1y=a.y+c1[1]*(r+58),q2x=a.x+c2[0]*(r+58),q2y=a.y+c2[1]*(r+58);
+      paths+='<path d="M'+sx+' '+sy+' C'+q1x+' '+q1y+' '+q2x+' '+q2y+' '+ex+' '+ey+'" fill="none" stroke-width="'+w+'" style="stroke:var(--s'+i+')" marker-end="url(#ah'+i+')"/>';
+      lab=[a.x+u[0]*(r+50),a.y+u[1]*(r+50)];
+    }else{
+      var d=unit(b.x-a.x,b.y-a.y),perp=[-d[1],d[0]],both=P[j][i]>=eps,off=both?27:10;
+      var mx=(a.x+b.x)/2,my=(a.y+b.y)/2,cx=mx+perp[0]*off*2,cy=my+perp[1]*off*2;
+      var ua=unit(cx-a.x,cy-a.y),ub=unit(cx-b.x,cy-b.y);
+      var s2x=a.x+ua[0]*(r+1),s2y=a.y+ua[1]*(r+1),e2x=b.x+ub[0]*(r+4),e2y=b.y+ub[1]*(r+4);
+      paths+='<path d="M'+s2x+' '+s2y+' Q'+cx+' '+cy+' '+e2x+' '+e2y+'" fill="none" stroke-width="'+w+'" style="stroke:var(--s'+i+')" marker-end="url(#ah'+i+')"/>';
+      lab=[.25*s2x+.5*cx+.25*e2x+perp[0]*(both?12:14),.25*s2y+.5*cy+.25*e2y+perp[1]*(both?12:14)];
+    }
+    labels+='<text class="sv-label" x="'+lab[0].toFixed(1)+'" y="'+lab[1].toFixed(1)+'" text-anchor="middle" dominant-baseline="middle">'+fmt(p)+'</text>';
+  }
+  for(i=0;i<n;i++){
+    var a2=pos[i],isNow=S.sim&&S.sim.cur===i;
+    nodes+='<circle cx="'+a2.x+'" cy="'+a2.y+'" r="'+r+'" stroke-width="3" style="stroke:var(--s'+i+');fill:'+(isNow?'var(--s'+i+')':'var(--panel)')+'"/>'+
+      '<text class="sv-node" x="'+a2.x+'" y="'+a2.y+'" text-anchor="middle" dominant-baseline="central" style="fill:'+(isNow?'var(--on)':'var(--ink)')+'">'+esc(short[i])+'</text>'+
+      '<text class="sv-name" x="'+(a2.x-a2.ux*(r+17))+'" y="'+(a2.y-a2.uy*(r+17))+'" text-anchor="middle" dominant-baseline="middle">'+esc(names[i])+'</text>';
+  }
+  var desc='Diagrama de estados: '+names.join(', ')+'.';
+  $('#diagram').innerHTML='<svg viewBox="0 0 600 490" role="img" aria-label="'+esc(desc)+'">'+defs+paths+nodes+labels+'</svg>';
+}
+
+/* ---------- barras ---------- */
+function barsHTML(rows){
+  return rows.map(function(r){
+    return '<div class="bar-row"><span class="bl"><i class="dot" style="--c:var(--s'+r.i+')"></i>'+esc(r.name)+'</span>'+
+      '<div class="track"><div class="fill" style="width:'+(r.v*100).toFixed(2)+'%;--c:var(--s'+r.i+')"></div>'+
+      (r.m!=null?'<div class="mark" style="left:calc('+(r.m*100).toFixed(2)+'% - 1px)"></div>':'')+
+      '</div><span class="bv">'+pct(r.v)+'</span></div>';
+  }).join('');
+}
+
+/* ---------- render: simulacion ---------- */
+function renderSim(){
+  var s=S.sim,names=cur().names,short=cur().short,n=names.length,i,j;
+  stateChips('#simStart',s.start,'data-start');
+  $('#now').innerHTML='<span class="badge" style="--c:var(--s'+s.cur+')">'+esc(names[s.cur])+'</span><span class="mono muted">paso '+s.steps+'</span>';
+  var tail=s.traj.slice(-90),trunc=s.traj.length>90||s.steps>=90;
+  $('#strip').innerHTML=(trunc?'<span class="mono muted" style="align-self:center;margin-right:4px">…</span>':'')+
+    tail.map(function(k,idx){return '<span class="cell'+(idx===tail.length-1?' last':'')+'" style="--c:var(--s'+k+')" title="'+esc(names[k])+'">'+esc(short[k])+'</span>'}).join('');
+  var total=s.steps+1,pi=getPi(s.start).pi;
+  $('#simBars').innerHTML=barsHTML(names.map(function(nm,k){return {i:k,name:nm,v:s.visits[k]/total,m:pi[k]}}));
+  var h='<table class="obs"><thead><tr><th></th>'+names.map(function(nm){return '<th>'+esc(nm)+'</th>'}).join('')+'</tr></thead><tbody>';
+  for(i=0;i<n;i++){
+    var rs=s.counts[i].reduce(function(a,b){return a+b},0);
+    h+='<tr><th scope="row"><i class="dot" style="--c:var(--s'+i+')"></i>'+esc(names[i])+'</th>';
+    for(j=0;j<n;j++){
+      h+='<td>'+(rs?fmt(s.counts[i][j]/rs).slice(0,5):'—')+' <small>('+fmt(S.Pn[i][j])+')</small></td>';
+    }
+    h+='</tr>';
+  }
+  h+='</tbody></table>';
+  $('#obs').innerHTML=h;
+}
+
+/* ---------- render: convergencia ---------- */
+function chartHTML(){
+  var st=S.conv.start,n=S.conv.n,N=hz(),names=cur().names,ns=names.length,pi=getPi(st).pi;
+  var W=680,Ht=310,ml=40,mr=108,mt=14,mb=34,pw=W-ml-mr,ph=Ht-mt-mb;
+  function x(k){return ml+pw*k/N}
+  function y(v){return mt+ph*(1-v)}
+  var g='',k,s;
+  [0,.25,.5,.75,1].forEach(function(v){
+    g+='<line x1="'+ml+'" x2="'+(ml+pw)+'" y1="'+y(v)+'" y2="'+y(v)+'" style="stroke:var(--line)" stroke-width="1"/>'+
+       '<text class="sv-axis" x="'+(ml-8)+'" y="'+y(v)+'" text-anchor="end" dominant-baseline="middle">'+v+'</text>';
+  });
+  var stepX=N<=20?5:N<=40?10:20;
+  for(k=0;k<=N;k+=stepX){
+    g+='<text class="sv-axis" x="'+x(k)+'" y="'+(Ht-mb+18)+'" text-anchor="middle">'+k+'</text>';
+  }
+  g+='<text class="sv-axis" x="'+(ml+pw/2)+'" y="'+(Ht-4)+'" text-anchor="middle">pasos (n)</text>';
+  var lines='',dash='',dots='',ends=[];
+  for(s=0;s<ns;s++){
+    var d='';
+    for(k=0;k<=N;k++)d+=(k?'L':'M')+x(k).toFixed(1)+' '+y(S.pows[k][st][s]).toFixed(1);
+    lines+='<path d="'+d+'" fill="none" stroke-width="2.5" stroke-linejoin="round" style="stroke:var(--s'+s+')"/>';
+    dash+='<line x1="'+x(0)+'" x2="'+x(N)+'" y1="'+y(pi[s])+'" y2="'+y(pi[s])+'" stroke-width="1.5" stroke-dasharray="5 4" opacity=".7" style="stroke:var(--s'+s+')"/>';
+    dots+='<circle cx="'+x(n)+'" cy="'+y(S.pows[n][st][s])+'" r="4.5" style="fill:var(--s'+s+');stroke:var(--panel)" stroke-width="2"/>';
+    ends.push({s:s,y:y(S.pows[N][st][s])});
+  }
+  ends.sort(function(a,b){return a.y-b.y});
+  for(var e=1;e<ends.length;e++)if(ends[e].y-ends[e-1].y<16)ends[e].y=ends[e-1].y+16;
+  var lab='';
+  ends.forEach(function(o){
+    lab+='<rect x="'+(ml+pw+10)+'" y="'+(o.y-5)+'" width="10" height="10" rx="2" style="fill:var(--s'+o.s+')"/>'+
+         '<text class="sv-axis" style="fill:var(--ink);font-size:12px" x="'+(ml+pw+25)+'" y="'+o.y+'" dominant-baseline="middle">'+esc(names[o.s])+'</text>';
+  });
+  var cursor='<line x1="'+x(n)+'" x2="'+x(n)+'" y1="'+mt+'" y2="'+(mt+ph)+'" stroke-dasharray="2 4" stroke-width="1.5" style="stroke:var(--muted)"/>';
+  return '<svg viewBox="0 0 '+W+' '+Ht+'" role="img" aria-label="Probabilidad de cada estado en función del número de pasos, partiendo de '+esc(names[st])+'. Las líneas punteadas marcan la distribución estacionaria.">'+g+dash+lines+cursor+dots+lab+'</svg>';
+}
+function renderConv(){
+  var st=S.conv.start,n=S.conv.n,H=hz(),names=cur().names,ns=names.length,i,j;
+  stateChips('#convStart',st,'data-cstart');
+  var sl=$('#nslider');sl.max=H;sl.value=n;
+  $('#nval').textContent='n = '+n;
+  $('#chart').innerHTML=chartHTML();
+  var pi=getPi(st).pi,dist=S.pows[n][st];
+  $('#convBars').innerHTML=barsHTML(names.map(function(nm,k){return {i:k,name:nm,v:dist[k],m:pi[k]}}));
+  var tv=0;for(i=0;i<ns;i++)tv+=Math.abs(dist[i]-pi[i]);tv/=2;
+  var msg='n = '+n+' · distancia a π = '+tv.toFixed(3)+' (0 = idéntica)';
+  if(S.an.irreducible&&S.an.period[0]>1)msg+='\nLa cadena es periódica: la distribución oscila y no se acerca a π.';
+  else if(tv<0.005)msg+='\nYa coincide casi por completo con la distribución estacionaria.';
+  $('#convStat').textContent=msg;$('#convStat').style.whiteSpace='pre-line';
+  var h='<table class="obs heat"><thead><tr><th>n = '+n+'</th>'+names.map(function(nm){return '<th>'+esc(nm)+'</th>'}).join('')+'</tr></thead><tbody>';
+  for(i=0;i<ns;i++){
+    h+='<tr'+(i===st?' style="font-weight:600"':'')+'><th scope="row"><i class="dot" style="--c:var(--s'+i+')"></i>'+esc(names[i])+'</th>';
+    for(j=0;j<ns;j++){var v=S.pows[n][i][j];h+='<td style="--h:'+v.toFixed(3)+'">'+fmt(v).slice(0,6)+'</td>'}
+    h+='</tr>';
+  }
+  h+='</tbody></table>';
+  $('#powMat').innerHTML=h;
+}
+
+/* ---------- render: propiedades ---------- */
+function verdictOf(){
+  var an=S.an,names=cur().names;
+  if(an.irreducible){
+    var d=an.period[0];
+    return d===1?{t:'Ergódica',d:'Desde cualquier estado se puede llegar a cualquier otro y no hay ciclos fijos. La distribución converge a una única distribución estacionaria, sin importar el estado inicial.'}
+      :{t:'Irreducible y periódica (periodo '+d+')',d:'Todos los estados se comunican, pero el sistema solo regresa a cada estado en múltiplos de '+d+' pasos. Existe una distribución estacionaria, pero la distribución en el paso n oscila y no converge.'};
+  }
+  if(an.closedCount===1){
+    var k=an.closed.indexOf(true),members=[];
+    an.cls.forEach(function(c,i){if(c===k)members.push(names[i])});
+    if(members.length===1)return {t:'Absorbente',d:'Hay un estado sin salida: '+members[0]+'. Los demás estados son transitorios; tarde o temprano el sistema queda atrapado y a largo plazo toda la probabilidad termina ahí.'};
+    return {t:'Con estados transitorios',d:'Hay estados que se abandonan para siempre. A largo plazo el sistema vive solo en {'+members.join(', ')+'} y los transitorios pierden toda su probabilidad.'};
+  }
+  return {t:'Varias clases cerradas',d:'Hay más de un grupo de estados del que no se puede salir. El comportamiento a largo plazo depende del estado inicial, y no hay una única distribución estacionaria.'};
+}
+function renderProps(){
+  var an=S.an,names=cur().names,n=names.length,st=S.conv.start,ps=getPi(st),pi=ps.pi,i;
+  var v=verdictOf();
+  $('#verdict').innerHTML='<span class="lab">Diagnóstico</span><h3>'+esc(v.t)+'</h3><p class="muted">'+esc(v.d)+'</p>'+
+    (ps.unique?'':'<p class="muted" style="font-size:13px">La distribución de largo plazo de la tabla parte de '+esc(names[st])+' (sección 3).</p>');
+  var ab=absorption(S.Pn,an);
+  if(ab){
+    $('#absCard').innerHTML='<span class="lab">Pasos esperados hasta quedar atrapado</span>'+
+      ab.map(function(o){return '<div class="bar-row" style="grid-template-columns:104px minmax(0,1fr)"><span class="bl"><i class="dot" style="--c:var(--s'+o.state+')"></i>'+esc(names[o.state])+'</span><span class="mono">'+(o.steps>=100?Math.round(o.steps):o.steps.toFixed(1))+' pasos</span></div>'}).join('')+
+      '<p class="muted" style="font-size:13px">Se calcula resolviendo (I − Q)t = 1, donde Q es la matriz restringida a los estados transitorios.</p>';
+  }else{
+    $('#absCard').innerHTML='<span class="lab">Tiempo medio de retorno</span><p class="muted">En una cadena irreducible, el número esperado de pasos para volver a un estado es 1 / π<sub>i</sub>. Los estados más probables a largo plazo son los que más seguido se visitan.</p>'+
+      (an.irreducible?'<p class="mono" style="font-size:14px">'+names.map(function(nm,k){return esc(nm)+': '+(1/pi[k]).toFixed(2)+' pasos'}).join('<br>')+'</p>':'<p class="muted" style="font-size:13px">Esta cadena no es irreducible, así que el retorno medio no aplica a todos los estados.</p>');
+  }
+  var h='<table class="props"><thead><tr><th>Estado</th><th>Tipo</th><th>Periodo</th><th>Largo plazo π</th><th>Retorno medio</th></tr></thead><tbody>';
+  for(i=0;i<n;i++){
+    var tipo=an.absorbing[i]?'Absorbente':an.rec[i]?'Recurrente':'Transitorio';
+    var per=an.period[i]>0?String(an.period[i]):'—';
+    var ret=(an.irreducible&&pi[i]>1e-9)?(1/pi[i]).toFixed(2)+' pasos':'—';
+    h+='<tr><td><i class="dot" style="--c:var(--s'+i+')"></i>'+esc(names[i])+'</td><td>'+tipo+'</td><td class="num">'+per+'</td><td class="num">'+pct(pi[i])+'</td><td class="num">'+ret+'</td></tr>';
+  }
+  h+='</tbody></table>';
+  $('#props').innerHTML=h;
+}
+
+/* ---------- ejercicios ---------- */
+function ri(m){return Math.floor(Math.random()*m)}
+function newExercise(){
+  var P=S.Pn,n=P.length,names=cur().names,type=ri(3),i,j,k,tries=0,ans,q,sol,kind;
+  function nm(x){return '<b>'+esc(names[x])+'</b>'}
+  if(type===0){
+    do{i=ri(n);j=ri(n);ans=S.pows.length>2?S.pows[2][i][j]:0;tries++}while(ans<0.005&&tries<40);
+    kind='Dos pasos (Chapman–Kolmogorov)';
+    q='Si hoy el sistema está en '+nm(i)+', ¿cuál es la probabilidad de que esté en '+nm(j)+' dentro de 2 pasos?';
+    var terms=[],lines=[];
+    for(k=0;k<n;k++){var t=P[i][k]*P[k][j];if(t>1e-12){terms.push(t);lines.push('vía '+names[k]+': '+fmt(P[i][k])+' × '+fmt(P[k][j])+' = '+fmt(t))}}
+    sol=lines.join('<br>')+'<br><b>Suma = '+fmt(ans)+'</b>';
+  }else if(type===1){
+    do{i=ri(n);j=ri(n);k=ri(n);ans=P[i][j]*P[j][k];tries++}while(ans<0.005&&tries<60);
+    kind='Probabilidad de una trayectoria';
+    q='Empezando en '+nm(i)+', ¿cuál es la probabilidad de que el sistema siga exactamente la trayectoria '+nm(i)+' → '+nm(j)+' → '+nm(k)+'?';
+    sol='P('+esc(names[i])+'→'+esc(names[j])+') × P('+esc(names[j])+'→'+esc(names[k])+')<br>= '+fmt(P[i][j])+' × '+fmt(P[j][k])+' = <b>'+fmt(ans)+'</b>';
+  }else{
+    var w=new Array(n).fill(0);for(var c=0;c<10;c++)w[ri(n)]++;
+    var d0=w.map(function(x){return x/10});
+    do{j=ri(n);ans=0;for(i=0;i<n;i++)ans+=d0[i]*P[i][j];tries++}while(ans<0.005&&tries<40);
+    kind='Distribución inicial y un paso';
+    q='Hoy el sistema está repartido así: '+names.map(function(x,t){return pct(d0[t])+' en '+nm(t)}).join(', ')+'. ¿Qué probabilidad hay de que mañana esté en '+nm(j)+'?';
+    var ls=[];for(i=0;i<n;i++)if(d0[i]>0)ls.push(fmt(d0[i])+' × '+fmt(P[i][j])+' = '+fmt(d0[i]*P[i][j])+' (desde '+esc(names[i])+')');
+    sol=ls.join('<br>')+'<br><b>Suma = '+fmt(ans)+'</b>';
+  }
+  return {kind:kind,q:q,ans:ans,sol:sol};
+}
+function renderExercise(){
+  var e=S.ex;
+  $('#exKind').textContent=e.kind;
+  $('#exQ').innerHTML=e.q;
+  $('#exAns').value='';
+  $('#exFb').textContent='';$('#exFb').className='feedback';
+  $('#exSol').hidden=true;$('#exSol').innerHTML=e.sol;
+}
+function checkExercise(){
+  var raw=$('#exAns').value.trim().replace(',','.'),fb=$('#exFb'),v;
+  if(!raw){fb.textContent='Escribe un número primero.';fb.className='feedback';return}
+  if(raw.slice(-1)==='%')v=parseFloat(raw)/100;else{v=parseFloat(raw);if(v>1&&v<=100)v/=100}
+  if(isNaN(v)){fb.textContent='No pude leer ese número. Prueba con 0.25 o 25%.';fb.className='feedback bad';return}
+  if(Math.abs(v-S.ex.ans)<=0.005){fb.textContent='Correcto: '+fmt(S.ex.ans)+'.';fb.className='feedback good'}
+  else{fb.textContent='No coincide. Revisa qué caminos sumas y qué probabilidades multiplicas, o abre la solución.';fb.className='feedback bad'}
+}
+
+/* ---------- render all ---------- */
+function renderAll(){
+  renderPresets();renderMatrix();renderExplain();renderDiagram();renderSim();renderConv();renderProps();renderExercise();
+}
+function renderDerived(){
+  renderExplain();renderDiagram();renderSim();renderConv();renderProps();
+}
+
+/* ---------- eventos ---------- */
+$('#presets').addEventListener('click',function(e){
+  var b=e.target.closest('[data-i]');if(b)loadPreset(+b.getAttribute('data-i'));
+});
+$('#matrix').addEventListener('input',function(e){
+  var t=e.target;if(!t.matches('input'))return;
+  var i=+t.getAttribute('data-i'),j=+t.getAttribute('data-j'),v=parseFloat(t.value);
+  if(isNaN(v))v=0;
+  S.P[i][j]=Math.min(1,Math.max(0,v));
+  S.activeRow=i;
+  recompute();resetSim(S.sim.start);
+  S.conv.n=Math.min(S.conv.n,hz());
+  S.ex=newExercise();
+  updateSums();renderDerived();renderExercise();
+});
+$('#matrix').addEventListener('focusin',function(e){
+  var t=e.target;if(!t.matches('input'))return;
+  S.activeRow=+t.getAttribute('data-i');renderExplain();
+});
+$('#btnNorm').addEventListener('click',function(){
+  S.P=normalize(S.P).map(function(r){return r.map(function(x){return Math.round(x*10000)/10000})});
+  recompute();resetSim(S.sim.start);S.ex=newExercise();
+  renderMatrix();renderDerived();renderExercise();
+});
+$('#btnRestore').addEventListener('click',function(){loadPreset(S.pi)});
+
+$('#h-2').closest('section').addEventListener('click',function(e){
+  var b=e.target.closest('[data-act]');
+  if(b){var k=+b.getAttribute('data-act');for(var i=0;i<k;i++)stepOnce();renderSim();renderDiagram();return}
+  var c=e.target.closest('[data-start]');
+  if(c){resetSim(+c.getAttribute('data-start'));renderSim();renderDiagram()}
+});
+$('#btnPlay').addEventListener('click',function(){
+  if(S.timer){stopPlay();return}
+  $('#btnPlay').textContent='Pausar';
+  S.timer=setInterval(function(){stepOnce();renderSim();renderDiagram()},450);
+});
+$('#btnReset').addEventListener('click',function(){resetSim(S.sim.start);renderSim();renderDiagram()});
+
+$('#convStart').addEventListener('click',function(e){
+  var c=e.target.closest('[data-cstart]');if(!c)return;
+  S.conv.start=+c.getAttribute('data-cstart');renderConv();renderProps();
+});
+$('#nslider').addEventListener('input',function(e){
+  stopConvPlay();S.conv.n=+e.target.value;renderConv();
+});
+$('#btnCPlay').addEventListener('click',function(){
+  if(S.ctimer){stopConvPlay();return}
+  if(S.conv.n>=hz())S.conv.n=0;
+  $('#btnCPlay').textContent='Pausar';
+  S.ctimer=setInterval(function(){
+    if(S.conv.n>=hz()){stopConvPlay();return}
+    S.conv.n++;renderConv();
+  },Math.max(60,Math.round(3000/hz())));
+});
+
+$('#exCheck').addEventListener('click',checkExercise);
+$('#exAns').addEventListener('keydown',function(e){if(e.key==='Enter')checkExercise()});
+$('#exShow').addEventListener('click',function(){$('#exSol').hidden=false});
+$('#exNew').addEventListener('click',function(){S.ex=newExercise();renderExercise()});
+
+document.addEventListener('visibilitychange',function(){if(document.hidden){stopPlay();stopConvPlay()}});
+
+loadPreset(0);
+})();
+</script>
+</body>
+</html>
